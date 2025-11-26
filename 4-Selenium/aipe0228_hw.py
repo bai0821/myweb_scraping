@@ -1,4 +1,4 @@
-# === 成品 ===
+# === !!!成品!!! ===
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -10,6 +10,18 @@ from selenium.common.exceptions import TimeoutException
 import time
 import os, json
 
+
+#滾輪
+def scroll_to_bottom(driver, step=800):
+    current = 0
+    while True:
+        driver.execute_script(f"window.scrollTo(0, {current});")
+        current += step
+        time.sleep(0.05)
+        # 每次往下滾一段，直到超過目前頁面的總高度就停
+        if current >= driver.execute_script("return document.body.scrollHeight"):
+            break
+
 #嘗試典籍下一頁並抓取資料
 def scrape_current_page(driver):
     WebDriverWait(driver, 10).until(
@@ -17,7 +29,31 @@ def scrape_current_page(driver):
             (By.CSS_SELECTOR,".c-listInfoGrid.c-listInfoGrid--gridCard ul li.c-listInfoGrid__item")
         )
     )
+
+    scroll_to_bottom(driver)
+
+
     razer_lists = driver.find_elements(By.CSS_SELECTOR, ".c-listInfoGrid.c-listInfoGrid--gridCard ul li.c-listInfoGrid__item")
+
+    max_wait = 5
+    start = time.time()
+    while True:
+        imgs = driver.find_elements(By.CSS_SELECTOR, ".c-prodInfoV2__head img")
+        
+        if not imgs:
+            if time.time() - start > max_wait:
+                break
+            time.sleep(0.2)
+            continue
+
+        last_src = imgs[-1].get_attribute("src") or ""
+        if not last_src.endswith(".svg"):
+            break
+        
+        if time.time() -start > max_wait:
+            break
+        
+        time.sleep(0.2)
 
     all_razer = []
     for razer_list in razer_lists:
@@ -71,7 +107,7 @@ def crawl_pchome(keyword:str ,pages: int = 18):
         except TimeoutException:
             print("找不到下一頁按鈕，提前結束。")
             break
-    driver.quit
+    driver.quit()
 
     filename = f"{keyword}.json"
     with open(filename, "w", encoding="utf-8") as f:
